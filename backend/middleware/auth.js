@@ -23,7 +23,7 @@ exports.authorizedRoles=(userRole)=>{
         // console.log(req.user.role.admin.includes(req.params.groupId));
         if(userRole=="admin"){
         if(!req.user.role.admin.includes(req.params.groupId)){
-            // console.log("helooow test");
+          
           return next (new ErrorHandler("u are not admin in this group",403))
         }}
         if(userRole=="user"){

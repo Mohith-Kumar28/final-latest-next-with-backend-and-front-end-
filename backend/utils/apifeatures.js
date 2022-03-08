@@ -8,19 +8,32 @@ class ApiFeatures{
 
     search(){
         const keyword=this.queryStr.keyword?{
-            name:{
-                $regex : this.queryStr.keyword,
-                $options: "i",
-            },
+            // name:{
+            //     $regex : this.queryStr.keyword,
+            //     $options: "i",
+            // },
+            name:this.queryStr.keyword.toLowerCase(),
         }:{};
         // console.log({...keyword.name})
       
        
 
         // this.query=this.query.post.filter((rev)=>console.log(rev));
-        this.query=this.query.post.filter((rev)=>{
-            if({...keyword}){return true};
-        });
+    
+        
+        if(keyword.name){
+            this.query.post=this.query.post.filter((rev)=>
+            {
+                return(rev.name.toLowerCase().includes(keyword.name)||rev.description.toLowerCase().includes(keyword.name));
+            }
+            // this.query.post=this.query.post.filter((rev)=>
+            // rev.name==="second"
+            );
+            // this.query=this.query.post.filter((rev)=>{
+                //     if({...keyword}){return true};
+                // });
+            }
+            // console.log(this.query)
         // this.query=this.query.post.filter((rev)=>rev.find({...keyword}));
         // this.query=this.query.post.filter((rev)=>rev.name ==={...keyword.name});
         return this;
@@ -36,6 +49,7 @@ class ApiFeatures{
         //  console.log(queryCopy);
         // console.log(this.query.post)
         if(queryCopy.category){
+            // console.log(this.query)
         this.query.post=this.query.post.filter((rev)=>rev.category === queryCopy.category)}
         // console.log(this);
         return this;

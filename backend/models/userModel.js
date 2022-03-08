@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema({
         },
         url:{
             type:String,
-            required:true
+            required:true,
         }
     },
     role:{
@@ -41,10 +41,10 @@ const userSchema = new mongoose.Schema({
             type:[String],
             default:[]} //here string is the group id
     },
-    // role:[{
-    //     groupId:{type:String,required:true},
-    //     userRole:{type:String,default:"user"}
-    // }],
+    createdAt:{
+        type:Date,
+        default:Date.now,
+    },
     resetPasswordToken:String,
     resetPasswordExpire:Date,
 });

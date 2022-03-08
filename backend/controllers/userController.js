@@ -4,17 +4,21 @@ const User = require("../models/userModel");
 const sendToken = require("../utils/jwtToken");
 const sendEmail=require("../utils/sendEmail");
 const crypto=require("crypto");
+const cloudinary = require("cloudinary");
 
 // register a user
 exports.registerUser=catchAsyncErrors(async(req,res,next)=>{
+  
+    const myCloud=await cloudinary.v2.uploader.upload(req.body.avatar,{folder:"avatars",width:150,crop:"scale"})
+
     const{name,email,password}=req.body;
     const user = await User.create({
         name,
         email,
-        password,
+        password, 
         avatar:{
-            public_id:"sample id",
-            url:"url sample"
+            public_id:myCloud.public_id,
+            url:myCloud.secure_url,
         } 
     });
     sendToken(user,201,res);
@@ -69,8 +73,9 @@ exports.forgotPassword=catchAsyncErrors(async(req,res,next)=>{
 
     await user.save({validateBeforeSave:false});
 
-    const resetPasswordUrl=`${req.protocol}://${req.get("host")}/api/v1/password/reset/${resetToken}`;
-    const message=`Your password reset token is:- \n\n ${resetPasswordUrl} \n\n If you have not requested this email,Please ignore it.`;
+    const resetPasswordUrl=`${process.env.FRONTEND_URL}/password/reset/${resetToken}`;
+    // const resetPasswordUrl=`${req.protocol}://${req.get("host")}/api/v1/password/reset/${resetToken}`;
+    const message=`Your password reset token is :- \n\n ${resetPasswordUrl} \n\n If you have not requested this email,Please ignore it.`;
 
     try {
        
@@ -156,16 +161,35 @@ exports.updatePassword = catchAsyncErrors(async(req,res,next)=>{
 // update user profile
 
 exports.updateProfile=catchAsyncErrors(async(req,res,next)=>{
+ 
     const newUserData={
         name:req.body.name,
-        email:req.body.email
-    };
+        email:req.body.email,
 
-    // coudinary images later
+    };
+  
+    // coudinary images update here
+    if(req.body.avatar!==""){
+        const user = await User.findById(req.user.id);
+
+        const imageid=user.avatar.public_id;
+
+     
+        await cloudinary.v2.uploader.destroy(imageid);
+
+        const myCloud=await cloudinary.v2.uploader.upload(req.body.avatar,{folder:"avatars",width:150,crop:"scale"});
+       
+        newUserData.avatar={
+            public_id:myCloud.public_id,
+            url:myCloud.secure_url
+        }
+    }
+    
+
     const user=await User.findByIdAndUpdate(req.user.id,newUserData,{new:true,runValidators:true,useFindAndModify:false,})
 
     res.status(200).json({
-        succes:true,
+        success:true,
         message:"user profile updated"
     })
 })
@@ -186,38 +210,117 @@ exports.getSingleUser= catchAsyncErrors(async(req,res,next)=>{
 // update user Role
 
 exports.updateUserRole=catchAsyncErrors(async(req,res,next)=>{
+    const testuser = await User.findById(req.params.id)
+    
+    let updatedRoleAdmin=testuser.role.admin;
+    let updatedRoleUser=testuser.role.user;
+
+    if(req.body.role==="admin"){
+        if(!testuser.role.admin.includes(req.params.groupId)){
+           testuser.role.admin.push(req.params.groupId)
+           updatedRoleAdmin=testuser.role.admin;
+        }
+        if(!testuser.role.user.includes(req.params.groupId)){
+        
+            testuser.role.user.push(req.params.groupId)
+            updatedRoleUser=testuser.role.user;
+            
+          }
+    }
+    if(req.body.role==="user"){
+        if(!testuser.role.user.includes(req.params.groupId)){
+        
+          testuser.role.user.push(req.params.groupId)
+          updatedRoleUser=testuser.role.user;
+          
+        }
+        if(testuser.role.admin.includes(req.params.groupId)){
+            updatedRoleAdmin=  testuser.role.admin.filter((rev)=>rev!==req.params.groupId)
+          
+         }
+    }
+
     const newUserData={
-        name:req.body.name,
-        email:req.body.email,
+        name:testuser.name,
+        email:testuser.email,
         role:{
-            admin:req.body.role.admin,
-            user:req.body.role.user
+            admin:updatedRoleAdmin,
+            user:updatedRoleUser
         }
     };
-
-   
+    // const newUserData={
+    //     name:req.body.name,
+    //     email:req.body.email,
+    //     role:{
+    //         admin:req.body.role.admin,
+    //         user:req.body.role.user
+    //     }
+    // };
     const user=await User.findByIdAndUpdate(req.params.id,newUserData,{new:true,runValidators:true,useFindAndModify:false,})
     if(!user){
         return next(new ErrorHandler(`user does not exist with id: ${req.params.id}`))
     }
 
     res.status(200).json({
-        succes:true,
+        success:true,
         message:"user role updated"
     })
 })
 
 // Delete User
 exports.deleteUser=catchAsyncErrors(async(req,res,next)=>{
-    const user = await User.findById(req.params.id);
+    const testuser = await User.findById(req.params.id)
+    
+    let updatedRoleAdmin=testuser.role.admin;
+    let updatedRoleUser=testuser.role.user;
 
 
+    if(testuser.role.admin.includes(req.params.groupId)){
+        updatedRoleAdmin=  testuser.role.admin.filter((rev)=>rev!==req.params.groupId)
+      
+     }
+    if(testuser.role.user.includes(req.params.groupId)){
+        updatedRoleUser=  testuser.role.user.filter((rev)=>rev!==req.params.groupId)
+      
+     }
+
+    const newUserData={
+        name:testuser.name,
+        email:testuser.email,
+        role:{
+            admin:updatedRoleAdmin,
+            user:updatedRoleUser
+        }
+    };
+
+    const user=await User.findByIdAndUpdate(req.params.id,newUserData,{new:true,runValidators:true,useFindAndModify:false,})
     if(!user){
         return next(new ErrorHandler(`user does not exist with id: ${req.params.id}`))
     }
-    await user.remove();
+
+   
     res.status(200).json({
-        succes:true,
-        message:"user deleted"
+        success:true,
+        message:"user removed"
     })
 })
+
+
+// // Delete User
+// exports.deleteUser=catchAsyncErrors(async(req,res,next)=>{
+//     const user = await User.findById(req.params.id);
+
+
+//     if(!user){
+//         return next(new ErrorHandler(`user does not exist with id: ${req.params.id}`))
+//     }
+
+//     const imageId=user.avatar.public_id;
+//     await cloudinary.v2.uploader.destroy(imageId);
+
+//     await user.remove();
+//     res.status(200).json({
+//         succes:true,
+//         message:"user deleted"
+//     })
+// })

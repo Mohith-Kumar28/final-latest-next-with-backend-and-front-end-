@@ -3,7 +3,8 @@ const PostGroupSchema = require("../models/postModel");
 const ErrorHandler = require("../utils/errorhandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const ApiFeatures = require("../utils/apifeatures");
-const User=require("../models/userModel")
+const User=require("../models/userModel");
+const cloudinary = require("cloudinary");
 
 // Create Group
 exports.createGroup = catchAsyncErrors(async(req,res,next)=>{
@@ -40,7 +41,10 @@ const data=await PostGroupSchema.find();
                  id:groupData._id,
                  name:groupData.groupName
              }
+            //  here i added role includes 
+             if(req.user.role.user.includes(groupData._id)){
              groups.push(groupInfo)
+            }
          })
          res.status(200).send(groups)
     //  }
@@ -50,14 +54,41 @@ const data=await PostGroupSchema.find();
 
 // Create New Post
 exports.createPost =catchAsyncErrors(async(req,res)=>{
+
+  
+    let images = [];
+
+    if (typeof req.body.images === "string") {
+      images.push(req.body.images);
+    } else {
+      images = req.body.images;
+    }
+  
+    const imagesLinks = [];
+  
+    for (let i = 0; i < images.length; i++) {
+      const result = await cloudinary.v2.uploader.upload(images[i], {
+        folder: "posts",
+      });
+  
+      imagesLinks.push({
+        public_id: result.public_id,
+        url: result.secure_url,
+      });
+    }
+  
+    req.body.images = imagesLinks;
+
     req.body.user=req.user.id;
   const newPost=req.body
  const post=await PostGroupSchema.findByIdAndUpdate(
       {_id : req.params.groupId},
       {$push: {post : req.body}},
   )
+
   res.status(200).json({
     success:true,
+    //  thisPost
      newPost
 })
   
@@ -92,9 +123,10 @@ exports.getAllData = catchAsyncErrors(async(req,res)=>{
 })
 
 // Get all posts of current group id(mentioned in query)
-exports.getAllPosts = catchAsyncErrors(async(req,res)=>{
+exports.getAllPosts = catchAsyncErrors(async(req,res,next)=>{
+    // return next(new ErrorHandler("test error",505));
    const id = req.params.groupId
-   const resultPerPage=2;
+   const resultPerPage=4;
 
    const posts= await PostGroupSchema.findById({_id:id});
 
@@ -106,16 +138,23 @@ exports.getAllPosts = catchAsyncErrors(async(req,res)=>{
 //    testPost=posts.post.find(post=>post.name="second")
 
 
-   const apiFeatures = new ApiFeatures(await PostGroupSchema.findById({_id:id}),req.query).filter().pagignation(resultPerPage);
+   const apiFeatures = new ApiFeatures(await PostGroupSchema.findById({_id:id}),req.query).search().filter();
 //    const apiFeatures = new ApiFeatures(await PostGroupSchema.findById({_id:id}),req.query).filter().pagignation(resultPerPage);
 //    const apiFeatures = new ApiFeatures(await PostGroupSchema.findById({_id:id}),req.query).search().filter();
 
-   const finalPosts=await apiFeatures.query;
+  let testposts=await apiFeatures.query.post;
+  let filteredPostsCount=testposts.length;
+//   console.log(filteredPostsCount);
+  apiFeatures.pagignation(resultPerPage);
+
+   finalPosts=await apiFeatures.query;
    res.status(200).json({
        success:true,
         // posts:posts.post
         postCount,
-        posts:finalPosts
+        resultPerPage,
+        posts:finalPosts,
+        filteredPostsCount
         // testPost
    })
    
@@ -264,7 +303,7 @@ exports.createPostReview=catchAsyncErrors(async(req,res,next)=>{
     })
 })
 
-// get all product reviews of a product
+// get all post reviews of a post
 exports.getPostReviews=catchAsyncErrors(async(req,res,next)=>{
     const group=await PostGroupSchema.findById({_id:req.params.groupId});
   

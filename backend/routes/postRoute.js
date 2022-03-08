@@ -12,12 +12,15 @@ router.route("/get/groupList").get(isAuthenticatedUser,getGroupList);
 router.route("/get/getAllData").get(isAuthenticatedUser,getAllData);
 
 
+// router.route("/:groupId/posts").get(getAllPosts);
+
 router.route("/:groupId/posts").get(isAuthenticatedUser,authorizedRoles("user"),getAllPosts);
 
 
 router.route("/:groupId/admin/post/new").post(isAuthenticatedUser,authorizedRoles("admin"),createPost);
 router.route("/:groupId/admin/post/:id").put(isAuthenticatedUser,authorizedRoles("admin"),updatePost).delete(isAuthenticatedUser,authorizedRoles("admin"),deletePost);
-router.route("/:groupId/post/:id").get(isAuthenticatedUser,getPostDetails)
+router.route("/:groupId/post/:id").get(getPostDetails)
+// router.route("/:groupId/post/:id").get(isAuthenticatedUser,getPostDetails)
 router.route("/group/new").post(isAuthenticatedUser,createGroup);
 router.route("/:groupId/getAllUser").get(isAuthenticatedUser,authorizedRoles("user"),getAllUser)
 
